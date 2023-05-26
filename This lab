@@ -1,0 +1,109 @@
+// To implement Producer-consumer using shared memory
+//Implement the above using shm_open and mmap
+
+//PRODUCER PROGRAM SHARED MEMORY
+ /*programs to illustrate shared memory implementation using the following system calls: shm_open, ftruncate(), mmap, shm_unlink*/
+#include<stdio.h>
+#include<unistd.h>
+#include<stdlib.h>
+#include<sys/types.h>
+#include<sys/shm.h>
+#include<sys/ipc.h>
+#include<sys/stat.h>
+#include<fcntl.h>
+#include<string.h>
+#include<sys/mman.h>
+
+int main() 
+{
+	void * psm;
+	char buf[10];
+	int shmid1;
+	shmid1 = shm_open("OS", O_CREAT | O_RDWR, 0666);
+	ftruncate(shmid1, 1024);
+	psm = mmap(0, 1024, PROT_WRITE, MAP_SHARED, shmid1, 0);
+	printf("Key/ID/fd of the shared memory: %d\n", shmid1);
+	printf("shared memory is attached at:%p\n", psm);
+	printf("enter some data to write to shared memory\n");
+	read(0, buf, 10);
+	sprintf(psm, "%s", buf);
+	return 0;
+}
+
+// CONSUMER PROGRAM SHARED MEMORY
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/ipc.h>
+#include <sys/mman.h>
+#include <sys/shm.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+int main() 
+{
+	void *psm;
+	int shmid;
+	shmid = shm_open("OS", O_RDONLY, 0666);
+	ftruncate(shmid, 1024);
+	psm = mmap(0, 1024, PROT_READ, MAP_SHARED, shmid, 0);
+	printf("Key/ID/fs of the shared memory: %d\n", shmid);
+	printf("shared memory for consumer is attached at:%p\n", psm);
+	printf("%s", (char *)psm);
+	printf("\n");
+	shm_unlink("OS");//removes the name of the shared memory object named by the string pointed to by name.
+	return 0;
+}
+
+
+
+//Implement the above using shmget and shmat
+//USING SHMGET, SHMAT, SHMDT, SHMCTL SYSTEM CALLS
+//PRODUCER PROCESS
+#include<stdio.h>
+#include<unistd.h>
+#include<stdlib.h>
+#include<sys/types.h>
+#include<sys/shm.h>
+#include<sys/ipc.h>
+int main() 
+{
+	void * psm;
+	char buf[10];
+	int shmid;
+	//To get the shared memory id
+	shmid = shmget((key_t) 1122, 1024, 0666 | IPC_CREAT);
+	printf("Key of the shared memory: %d\n", shmid);
+	//To attach shared memory segment to an address space
+	psm = shmat(shmid, NULL, 0666);
+	printf("memory attached at:%p\n", psm);
+	printf("enter some data to write to shared memory\n");
+	read(0, buf, 10);
+	sprintf(psm, "%s", buf);
+	//To detach the shared memory segment from the address space of the calling process.
+	shmdt(psm);
+	return 0;
+}
+
+//CONSUMER PROCESS
+#include<stdio.h>
+#include<unistd.h>
+#include<stdlib.h>
+#include<sys/types.h>
+#include<sys/shm.h>
+#include<string.h>
+int main()
+{
+	void * psm;
+	char buf[10];
+	int shmid;
+	shmid = shmget((key_t) 1122, 1024, 0666);
+	printf("Key of the shared memory: %d\n", shmid);
+	psm = shmat(shmid, NULL, 0666);
+	printf("process attached at:%p\n", psm);
+	printf("data read from the shared memory is:%s", (char * ) psm);
+	printf("\n");
+	//shmctl() performs the control operation specified by cmd
+	shmctl(shmid, IPC_RMID, NULL); //IPC_RMID marks the segment to destroyed
+	return 0;
+}
